@@ -448,7 +448,7 @@ export default function Home() {
                     className="bg-slate-900/60 p-5 rounded-2xl border border-white/5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 text-xs"
                   >
                     <div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span className="font-mono font-bold text-white text-sm">{res.orderId}</span>
                         <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase ${
                           res.status === 'settlement' 
@@ -457,6 +457,28 @@ export default function Home() {
                         }`}>
                           {res.status === 'settlement' ? 'Lunas' : 'Menunggu Pembayaran'}
                         </span>
+                        
+                        {res.status !== 'settlement' && (
+                          <button
+                            onClick={async () => {
+                              setIsLoading(true);
+                              try {
+                                await dbService.markAsPaid(res.orderId);
+                                setMessage(`✅ [Simulasi Webhook] Order ${res.orderId} berhasil di-settle! Saldo kafe telah diperbarui.`);
+                                if (activeUser) {
+                                  await loadData(activeUser.uid);
+                                }
+                              } catch (err: any) {
+                                alert(`Error: ${err.message}`);
+                              } finally {
+                                setIsLoading(false);
+                              }
+                            }}
+                            className="bg-emerald-600/20 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-600 hover:text-white transition px-2.5 py-0.5 rounded text-[9px] font-black cursor-pointer"
+                          >
+                            ⚡ Simulasikan Webhook Lunas
+                          </button>
+                        )}
                       </div>
                       
                       <div className="font-bold text-gray-200 text-base mt-2">🏢 {res.cafeName}</div>
