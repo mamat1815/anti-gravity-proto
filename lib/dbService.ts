@@ -103,7 +103,12 @@ const getFirebaseConfig = () => {
 };
 
 const config = getFirebaseConfig();
-export const isFirebaseConfigured = !!(config.apiKey && config.projectId);
+export const isFirebaseConfigured = !!(
+  config.apiKey && 
+  config.projectId && 
+  config.apiKey !== 'your-api-key' && 
+  config.projectId !== 'your-project-id'
+);
 
 // 2. Inisialisasi Firebase (jika sudah dikonfigurasi)
 let firebaseApp: any = null;

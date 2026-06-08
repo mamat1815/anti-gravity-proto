@@ -11,9 +11,26 @@ const getFirebaseAdminDb = () => {
     return null;
   }
 
+  // Cek jika kredensial masih berupa placeholder/contoh dari template
+  if (
+    projectId === 'your-project-id' || 
+    clientEmail.includes('xxxxx') || 
+    privateKey.includes('...')
+  ) {
+    console.log("⚠️ Kredensial Firebase di .env.local masih berupa placeholder. Backend API beroperasi dalam Mock Mode.");
+    return null;
+  }
+
   try {
-    // Merapikan format private key jika mengandung escaped newlines
-    const formattedPrivateKey = privateKey.replace(/\\n/g, '\n');
+    // Bersihkan spasi dan rapikan format private key
+    let formattedPrivateKey = privateKey.trim();
+    if (formattedPrivateKey.startsWith('"') && formattedPrivateKey.endsWith('"')) {
+      formattedPrivateKey = formattedPrivateKey.slice(1, -1);
+    }
+    if (formattedPrivateKey.startsWith("'") && formattedPrivateKey.endsWith("'")) {
+      formattedPrivateKey = formattedPrivateKey.slice(1, -1);
+    }
+    formattedPrivateKey = formattedPrivateKey.replace(/\\n/g, '\n');
 
     if (admin.apps.length === 0) {
       admin.initializeApp({
