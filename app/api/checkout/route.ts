@@ -23,8 +23,9 @@ export async function POST(req: Request) {
     const orderId = `AG-${Date.now()}`;
 
     // 1. Simpan data reservasi awal ke database jika Firebase Admin aktif
-    if (adminDb) {
-      await adminDb.collection('reservations').doc(orderId).set({
+    const db = adminDb;
+    if (db) {
+      await db.collection('reservations').doc(orderId).set({
         orderId,
         cafeId,
         cafeName,

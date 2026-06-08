@@ -11,8 +11,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'ID Kafe harus diisi' }, { status: 400 });
     }
 
-    if (adminDb) {
-      const cafeRef = adminDb.collection('cafes').doc(cafeId);
+    const db = adminDb;
+    if (db) {
+      const cafeRef = db.collection('cafes').doc(cafeId);
       const cafeSnap = await cafeRef.get();
 
       if (!cafeSnap.exists) {
@@ -27,7 +28,7 @@ export async function POST(req: Request) {
       }
 
       // Gunakan Transaction Firestore agar atomik dan aman
-      await adminDb.runTransaction(async (transaction) => {
+      await db.runTransaction(async (transaction) => {
         // 1. Dapatkan data kafe terupdate
         const freshCafeSnap = await transaction.get(cafeRef);
         const freshCafeData = freshCafeSnap.data();
@@ -35,7 +36,7 @@ export async function POST(req: Request) {
         const transferredBalance = (freshCafeData && freshCafeData.transferredBalance) || 0;
 
         // 2. Buat Log Payout
-        const payoutRef = adminDb.collection('payouts').doc();
+        const payoutRef = db.collection('payouts').doc();
         transaction.set(payoutRef, {
           cafeId,
           cafeName: freshCafeData?.name || 'Kafe',
@@ -54,14 +55,14 @@ export async function POST(req: Request) {
       });
 
       // 4. Update status payout pada reservasi terkait (di luar transaksi agar tidak memblokir)
-      const reservationsSnap = await adminDb.collection('reservations')
+      const reservationsSnap = await db.collection('reservations')
         .where('cafeId', '==', cafeId)
         .where('status', '==', 'settlement')
         .where('payoutStatus', '==', 'pending')
         .get();
 
       if (!reservationsSnap.empty) {
-        const batch = adminDb.batch();
+        const batch = db.batch();
         reservationsSnap.forEach((doc) => {
           batch.update(doc.ref, {
             payoutStatus: 'transferred',

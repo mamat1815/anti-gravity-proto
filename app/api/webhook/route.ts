@@ -26,8 +26,9 @@ export async function POST(req: Request) {
       console.log(`✅ [WEBHOOK] Pembayaran Berhasil! Order ID: ${order_id}, Nominal: ${gross_amount}`);
       
       // Update data di Firestore jika Firebase Admin terkonfigurasi
-      if (adminDb) {
-        const reservationRef = adminDb.collection('reservations').doc(order_id);
+      const db = adminDb;
+      if (db) {
+        const reservationRef = db.collection('reservations').doc(order_id);
         const reservationSnap = await reservationRef.get();
 
         if (reservationSnap.exists) {
@@ -38,7 +39,7 @@ export async function POST(req: Request) {
 
             // Tambahkan saldo ke kafe terkait
             const cafeId = reservationData.cafeId;
-            const cafeRef = adminDb.collection('cafes').doc(cafeId);
+            const cafeRef = db.collection('cafes').doc(cafeId);
             const cafeSnap = await cafeRef.get();
 
             if (cafeSnap.exists) {
