@@ -1,16 +1,45 @@
 // app/api/checkout/route.ts
 import { NextResponse } from 'next/server';
+import { adminDb } from '@/lib/firebaseAdmin';
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { cafeId, cafeName, itemPrice, appFee } = body;
+    const { 
+      cafeId, 
+      cafeName, 
+      itemPrice, 
+      appFee,
+      customerId,
+      customerName,
+      customerEmail,
+      itemsOrdered
+    } = body;
 
     // Kalkulasi Pass-on Fee (Gross Up untuk QRIS 0.7%)
     const targetBersih = itemPrice + appFee;
     const grossAmount = Math.ceil(targetBersih / 0.993); 
     
     const orderId = `AG-${Date.now()}`;
+
+    // 1. Simpan data reservasi awal ke database jika Firebase Admin aktif
+    if (adminDb) {
+      await adminDb.collection('reservations').doc(orderId).set({
+        orderId,
+        cafeId,
+        cafeName,
+        customerId: customerId || 'guest-id',
+        customerName: customerName || 'Pelanggan Anonim',
+        customerEmail: customerEmail || 'guest@example.com',
+        itemPrice,
+        appFee,
+        grossAmount,
+        status: 'pending',
+        payoutStatus: 'pending',
+        createdAt: new Date().toISOString(),
+        itemsOrdered: itemsOrdered || []
+      });
+    }
 
     // Payload untuk Midtrans Snap API
     const payload = {
@@ -63,4 +92,4 @@ export async function POST(req: Request) {
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-}
+}

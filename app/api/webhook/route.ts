@@ -1,6 +1,7 @@
 // app/api/webhook/route.ts
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
+import { adminDb } from '@/lib/firebaseAdmin';
 
 export async function POST(req: Request) {
   try {
@@ -24,9 +25,37 @@ export async function POST(req: Request) {
     if (transaction_status === 'settlement' || transaction_status === 'capture') {
       console.log(`✅ [WEBHOOK] Pembayaran Berhasil! Order ID: ${order_id}, Nominal: ${gross_amount}`);
       
-      // DI SINILAH SEHARUSNYA ANDA MENULIS KE DATABASE (PostgreSQL / GORM / Prisma)
-      // Misalnya: UPDATE transactions SET status = 'sukses' WHERE id = order_id
-      // UPDATE cafes SET balance = balance + netCafe WHERE ...
+      // Update data di Firestore jika Firebase Admin terkonfigurasi
+      if (adminDb) {
+        const reservationRef = adminDb.collection('reservations').doc(order_id);
+        const reservationSnap = await reservationRef.get();
+
+        if (reservationSnap.exists) {
+          const reservationData = reservationSnap.data();
+          if (reservationData && reservationData.status !== 'settlement') {
+            // Update status reservasi
+            await reservationRef.update({ status: 'settlement' });
+
+            // Tambahkan saldo ke kafe terkait
+            const cafeId = reservationData.cafeId;
+            const cafeRef = adminDb.collection('cafes').doc(cafeId);
+            const cafeSnap = await cafeRef.get();
+
+            if (cafeSnap.exists) {
+              const cafeData = cafeSnap.data();
+              const currentBalance = (cafeData && cafeData.balance) || 0;
+              await cafeRef.update({
+                balance: currentBalance + reservationData.itemPrice
+              });
+              console.log(`✅ [WEBHOOK] Saldo Kafe ${cafeId} bertambah Rp ${reservationData.itemPrice}`);
+            } else {
+              console.error(`🚨 [WEBHOOK] Gagal menambah saldo: Kafe dengan ID ${cafeId} tidak ditemukan.`);
+            }
+          }
+        } else {
+          console.error(`🚨 [WEBHOOK] Transaksi dengan Order ID ${order_id} tidak ditemukan di Firestore.`);
+        }
+      }
 
     } else if (transaction_status === 'pending') {
       console.log(`⏳ [WEBHOOK] Menunggu pembayaran. Order ID: ${order_id}`);
@@ -34,11 +63,11 @@ export async function POST(req: Request) {
       console.log(`❌ [WEBHOOK] Status transaksi: ${transaction_status}. Order ID: ${order_id}`);
     }
 
-    // Selalu kembalikan status 200 OK ke Midtrans agar mereka tidak melakukan pengiriman ulang (retry)
+    // Selalu kembalikan status 200 OK ke Midtrans
     return NextResponse.json({ message: 'Webhook received' }, { status: 200 });
 
   } catch (error: any) {
     console.error('Error handling webhook:', error.message);
     return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
   }
-}
+}
